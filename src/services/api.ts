@@ -100,6 +100,32 @@ class ApiService {
     return products.map(p => this.transformProduct(p));
   }
 
+  // Helper function to transform API depot to frontend format
+  private transformDepot(apiDepot: any) {
+    if (!apiDepot) {
+      return apiDepot;
+    }
+
+    return {
+      id: apiDepot.id ?? apiDepot.depotId,
+      name: apiDepot.name || apiDepot.nom || apiDepot.libelle || '',
+      address: apiDepot.address || apiDepot.adresse || '',
+      city: apiDepot.city || apiDepot.ville || '',
+      country: apiDepot.country || apiDepot.pays || '',
+      postalCode: apiDepot.postalCode || apiDepot.codePostal || apiDepot.postal_code || '',
+      phone: apiDepot.phone || apiDepot.telephone || '',
+      email: apiDepot.email || apiDepot.mail || '',
+      isActive: apiDepot.isActive ?? apiDepot.actif ?? true,
+      createdAt: apiDepot.createdAt || apiDepot.created_at,
+      updatedAt: apiDepot.updatedAt || apiDepot.updated_at,
+    };
+  }
+
+  private transformDepots(apiDepots: any) {
+    const depots = Array.isArray(apiDepots) ? apiDepots : [apiDepots];
+    return depots.map((depot) => this.transformDepot(depot));
+  }
+
   // Stock API methods
   async getStocks(productId?: number) {
     const url = productId ? `/Stock?productId=${productId}` : '/Stock';
@@ -249,19 +275,97 @@ class ApiService {
 
   // Depot API methods
   async getDepots() {
-    return this.get('/Depot');
+    const response = await this.get<any>('/Depot');
+
+    if (response && response.data) {
+      return {
+        success: response.success ?? true,
+        message: response.message ?? 'Success',
+        data: this.transformDepots(response.data),
+      };
+    }
+
+    if (Array.isArray(response)) {
+      return {
+        success: true,
+        message: 'Success',
+        data: this.transformDepots(response),
+      };
+    }
+
+    return response;
   }
 
   async getDepot(id: number) {
-    return this.get(`/Depot/${id}`);
+    const response = await this.get<any>(`/Depot/${id}`);
+
+    if (response && response.data) {
+      return {
+        success: response.success ?? true,
+        message: response.message ?? 'Success',
+        data: this.transformDepot(response.data),
+      };
+    }
+
+    return response;
   }
 
   async createDepot(depotData: any) {
-    return this.post('/Depot', depotData);
+    const payload = {
+      name: depotData.name,
+      address: depotData.address,
+      city: depotData.city,
+      country: depotData.country,
+      postalCode: depotData.postalCode,
+      phone: depotData.phone,
+      email: depotData.email,
+      isActive: depotData.isActive,
+    };
+
+    const response = await this.post<any>('/Depot', payload);
+
+    if (response && response.data) {
+      return {
+        success: response.success ?? true,
+        message: response.message ?? 'Success',
+        data: this.transformDepot(response.data),
+      };
+    }
+
+    if (response && response.id) {
+      return {
+        success: true,
+        message: 'Success',
+        data: this.transformDepot(response),
+      };
+    }
+
+    return response;
   }
 
   async updateDepot(id: number, depotData: any) {
-    return this.put(`/Depot/${id}`, depotData);
+    const payload = {
+      name: depotData.name,
+      address: depotData.address,
+      city: depotData.city,
+      country: depotData.country,
+      postalCode: depotData.postalCode,
+      phone: depotData.phone,
+      email: depotData.email,
+      isActive: depotData.isActive,
+    };
+
+    const response = await this.put<any>(`/Depot/${id}`, payload);
+
+    if (response && response.data) {
+      return {
+        success: response.success ?? true,
+        message: response.message ?? 'Success',
+        data: this.transformDepot(response.data),
+      };
+    }
+
+    return response;
   }
 
   async deleteDepot(id: number) {

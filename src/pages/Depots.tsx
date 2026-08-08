@@ -122,8 +122,14 @@ export const Depots: React.FC = () => {
 
   const handleSubmit = async () => {
     try {
+      if (!formData.name.trim()) {
+        alert('Depot name is required');
+        return;
+      }
+
       const depotData = {
         ...formData,
+        name: formData.name.trim(),
       };
 
       if (editingDepot) {
@@ -136,6 +142,7 @@ export const Depots: React.FC = () => {
       fetchDepots();
     } catch (error) {
       console.error('Error saving depot:', error);
+      alert('Unable to save depot. Please check the values and try again.');
     }
   };
 
