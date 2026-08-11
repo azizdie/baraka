@@ -30,7 +30,9 @@ export interface Stock {
   quantity: number;
   reservedQuantity: number;
   availableQuantity: number;
-  location: number;
+  // backend uses `location` to reference depot id; keep both for compatibility
+  location?: number;
+  depotId?: number;
   lastUpdated?: string;
 }
 
@@ -52,6 +54,8 @@ export interface Category {
   id?: number;
   name: string;
   description?: string;
+  parentId?: number;
+  isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

@@ -4,16 +4,8 @@ import {
   Card,
   CardContent,
   Typography,
-  Grid,
   CircularProgress,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   IconButton,
   Dialog,
   DialogTitle,
@@ -21,6 +13,7 @@ import {
   DialogActions,
   TextField,
 } from '@mui/material';
+import Grid from '../components/AnyGrid';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -30,18 +23,7 @@ import {
 } from '@mui/icons-material';
 import { useMobileView } from '../contexts/MobileViewContext';
 import { apiService } from '../services/api';
-
-interface Depot {
-  id: number;
-  name: string;
-  address?: string;
-  city?: string;
-  country?: string;
-  postalCode?: string;
-  phone?: string;
-  email?: string;
-  isActive: boolean;
-}
+import type { Depot } from '../types';
 
 export const Depots: React.FC = () => {
   const { isMobile } = useMobileView();
@@ -104,7 +86,7 @@ export const Depots: React.FC = () => {
       postalCode: depot.postalCode || '',
       phone: depot.phone || '',
       email: depot.email || '',
-      isActive: depot.isActive,
+        isActive: depot.isActive ?? true,
     });
     setDialogOpen(true);
   };
@@ -112,7 +94,9 @@ export const Depots: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this depot?')) {
       try {
-        await apiService.deleteDepot(id);
+          if (id) {
+            await apiService.deleteDepot(id);
+          }
         fetchDepots();
       } catch (error) {
         console.error('Error deleting depot:', error);
@@ -132,8 +116,8 @@ export const Depots: React.FC = () => {
         name: formData.name.trim(),
       };
 
-      if (editingDepot) {
-        await apiService.updateDepot(editingDepot.id, depotData);
+        if (editingDepot && editingDepot.id) {
+          await apiService.updateDepot(editingDepot.id, depotData);
       } else {
         await apiService.createDepot(depotData);
       }
@@ -221,7 +205,7 @@ export const Depots: React.FC = () => {
                     </IconButton>
                     <IconButton
                       size="small"
-                      onClick={() => handleDelete(depot.id)}
+                      onClick={() => depot.id && handleDelete(depot.id)}
                       color="error"
                     >
                       <DeleteIcon />

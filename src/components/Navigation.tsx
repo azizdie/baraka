@@ -9,9 +9,9 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  ListItemButton,
   IconButton,
   useTheme,
-  useMediaQuery,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -85,38 +85,38 @@ export const Navigation: React.FC<NavigationProps> = ({ children }) => {
       </Toolbar>
       <List sx={{ px: 2 }}>
         {menuItems.map((item) => (
-          <ListItem
-            button
-            key={item.text}
-            onClick={() => handleNavigation(item.path)}
-            selected={location.pathname === item.path}
-            sx={{
-              borderRadius: 2,
-              mb: 1,
-              '&.Mui-selected': {
-                backgroundColor: theme.palette.primary.main,
-                color: 'white',
-                '&:hover': {
-                  backgroundColor: theme.palette.primary.dark,
-                },
-                '& .MuiListItemIcon-root': {
-                  color: 'white',
-                },
-              },
-              '&:hover': {
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            <ListItemIcon
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton
+              onClick={() => handleNavigation(item.path)}
+              selected={location.pathname === item.path}
               sx={{
-                minWidth: 40,
-                color: location.pathname === item.path ? 'inherit' : 'inherit',
+                borderRadius: 2,
+                mb: 1,
+                '&.Mui-selected': {
+                  backgroundColor: theme.palette.primary.main,
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: theme.palette.primary.dark,
+                  },
+                  '& .MuiListItemIcon-root': {
+                    color: 'white',
+                  },
+                },
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                },
               }}
             >
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText primary={item.text} />
+              <ListItemIcon
+                sx={{
+                  minWidth: 40,
+                  color: location.pathname === item.path ? 'inherit' : 'inherit',
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText primary={item.text} />
+            </ListItemButton>
           </ListItem>
         ))}
       </List>

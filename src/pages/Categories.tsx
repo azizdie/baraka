@@ -4,16 +4,8 @@ import {
   Card,
   CardContent,
   Typography,
-  Grid,
   CircularProgress,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   IconButton,
   Dialog,
   DialogTitle,
@@ -21,6 +13,7 @@ import {
   DialogActions,
   TextField,
 } from '@mui/material';
+import Grid from '../components/AnyGrid';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -30,13 +23,7 @@ import {
 import { useMobileView } from '../contexts/MobileViewContext';
 import { apiService } from '../services/api';
 
-interface Category {
-  id: number;
-  name: string;
-  description?: string;
-  parentId?: number;
-  isActive: boolean;
-}
+import type { Category } from '../types';
 
 export const Categories: React.FC = () => {
   const { isMobile } = useMobileView();
@@ -59,8 +46,8 @@ export const Categories: React.FC = () => {
     try {
       setLoading(true);
       const response = await apiService.getCategories().catch(() => ({ success: false, data: [] }));
-      if (response.success) {
-        setCategories(response.data || []);
+      if (response && (response as any).success) {
+        setCategories((response as any).data || []);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -87,7 +74,7 @@ export const Categories: React.FC = () => {
       name: category.name || '',
       description: category.description || '',
       parentId: category.parentId?.toString() || '',
-      isActive: category.isActive,
+      isActive: category.isActive ?? true,
     });
     setDialogOpen(true);
   };
@@ -110,7 +97,7 @@ export const Categories: React.FC = () => {
         parentId: formData.parentId ? parseInt(formData.parentId) : undefined,
       };
 
-      if (editingCategory) {
+      if (editingCategory && editingCategory.id) {
         await apiService.updateCategory(editingCategory.id, categoryData);
       } else {
         await apiService.createCategory(categoryData);
@@ -198,7 +185,7 @@ export const Categories: React.FC = () => {
                     </IconButton>
                     <IconButton
                       size="small"
-                      onClick={() => handleDelete(category.id)}
+                      onClick={() => category.id && handleDelete(category.id)}
                       color="error"
                     >
                       <DeleteIcon />

@@ -27,16 +27,7 @@ import {
 } from '@mui/icons-material';
 import { useMobileView } from '../contexts/MobileViewContext';
 import { apiService } from '../services/api';
-
-interface Product {
-  id: number;
-  name: string;
-  description?: string;
-  categoryId?: number;
-  reference?: string;
-  barcode?: string;
-  status?: string;
-}
+import type { Product } from '../types';
 
 export const Products: React.FC = () => {
   const { isMobile } = useMobileView();
@@ -133,7 +124,7 @@ export const Products: React.FC = () => {
 
       console.log('Submitting product:', productData);
 
-      if (editingProduct) {
+      if (editingProduct && editingProduct.id) {
         await apiService.updateProduct(editingProduct.id, productData);
         alert('Product updated successfully');
       } else {
@@ -218,7 +209,7 @@ export const Products: React.FC = () => {
                       </IconButton>
                       <IconButton
                         size="small"
-                        onClick={() => handleDelete(product.id)}
+                        onClick={() => product.id && handleDelete(product.id)}
                         color="error"
                       >
                         <DeleteIcon />

@@ -4,10 +4,10 @@ import {
   Card,
   CardContent,
   Typography,
-  Grid,
   CircularProgress,
   useTheme,
 } from '@mui/material';
+import Grid from '../components/AnyGrid';
 import {
   TrendingUp as TrendingUpIcon,
   Inventory as InventoryIcon,
@@ -15,7 +15,6 @@ import {
   Warehouse as WarehouseIcon,
 } from '@mui/icons-material';
 import { useMobileView } from '../contexts/MobileViewContext';
-import { useResponsive, getResponsiveGridCols } from '../utils/responsive';
 import { apiService } from '../services/api';
 
 interface DashboardStats {
