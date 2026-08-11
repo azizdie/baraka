@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import type { Stock as StockType, Product } from '../types';
 import {
   Box,
   Card,
   CardContent,
   Typography,
-  Grid,
   CircularProgress,
   Button,
   Table,
@@ -21,33 +21,23 @@ import {
   DialogActions,
   TextField,
   Chip,
+  MenuItem,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Inventory as InventoryIcon,
-  TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
 import { useMobileView } from '../contexts/MobileViewContext';
 import { apiService } from '../services/api';
 
-interface Stock {
-  id: number;
-  productId: number;
-  depotId: number;
-  quantity: number;
-  availableQuantity: number;
-  reservedQuantity: number;
-  lastUpdated: string;
-}
-
 export const Stock: React.FC = () => {
   const { isMobile } = useMobileView();
-  const [stocks, setStocks] = useState<Stock[]>([]);
+  const [stocks, setStocks] = useState<StockType[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingStock, setEditingStock] = useState<Stock | null>(null);
+  const [editingStock, setEditingStock] = useState<StockType | null>(null);
   const [formData, setFormData] = useState({
     productId: '',
     depotId: '',
@@ -55,14 +45,27 @@ export const Stock: React.FC = () => {
   });
 
   useEffect(() => {
+    fetchProducts();
     fetchStocks();
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await apiService.getProducts();
+      if (response?.success) {
+        setProducts(response.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setProducts([]);
+    }
+  };
 
   const fetchStocks = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getStocks().catch(() => ({ success: false, data: [] }));
-      if (response.success) {
+      const response = await apiService.getStocks();
+      if (response?.success) {
         setStocks(response.data || []);
       }
     } catch (error) {
@@ -83,14 +86,24 @@ export const Stock: React.FC = () => {
     setDialogOpen(true);
   };
 
-  const handleEdit = (stock: Stock) => {
+  const handleEdit = (stock: StockType) => {
     setEditingStock(stock);
     setFormData({
       productId: stock.productId.toString(),
-      depotId: stock.depotId.toString(),
+      depotId: stock.depotId != null ? stock.depotId.toString() : (stock.location != null ? stock.location.toString() : ''),
       quantity: stock.quantity.toString(),
     });
     setDialogOpen(true);
+  };
+
+  const productMap = useMemo(
+    () => new Map(products.map((product) => [product.id?.toString() ?? '', product])),
+    [products]
+  );
+
+  const getProductName = (productId: number) => {
+    const product = productMap.get(productId.toString());
+    return product?.name || `#${productId}`;
   };
 
   const handleDelete = async (id: number) => {
@@ -108,11 +121,11 @@ export const Stock: React.FC = () => {
     try {
       const stockData = {
         productId: parseInt(formData.productId),
-        depotId: parseInt(formData.depotId),
+        location: formData.depotId.trim() === '' ? null : parseInt(formData.depotId),
         quantity: parseInt(formData.quantity),
       };
 
-      if (editingStock) {
+      if (editingStock && editingStock.id) {
         await apiService.updateStock(editingStock.id, stockData);
       } else {
         await apiService.createStock(stockData);
@@ -125,7 +138,7 @@ export const Stock: React.FC = () => {
     }
   };
 
-  const getStockStatus = (stock: Stock) => {
+  const getStockStatus = (stock: StockType) => {
     if (stock.availableQuantity < 10) {
       return { label: 'Low Stock', color: 'error' as const };
     } else if (stock.availableQuantity < 50) {
@@ -178,7 +191,7 @@ export const Stock: React.FC = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Product ID</TableCell>
+                  <TableCell>Product</TableCell>
                   <TableCell>Depot ID</TableCell>
                   <TableCell>Total Quantity</TableCell>
                   <TableCell>Available</TableCell>
@@ -193,8 +206,8 @@ export const Stock: React.FC = () => {
                   const status = getStockStatus(stock);
                   return (
                     <TableRow key={stock.id}>
-                      <TableCell>{stock.productId}</TableCell>
-                      <TableCell>{stock.depotId}</TableCell>
+                      <TableCell>{getProductName(stock.productId)}</TableCell>
+                      <TableCell>{stock.depotId ?? stock.location ?? '-'}</TableCell>
                       <TableCell>{stock.quantity}</TableCell>
                       <TableCell>{stock.availableQuantity}</TableCell>
                       <TableCell>{stock.reservedQuantity}</TableCell>
@@ -206,7 +219,7 @@ export const Stock: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        {new Date(stock.lastUpdated).toLocaleDateString()}
+                        {stock.lastUpdated ? new Date(stock.lastUpdated).toLocaleDateString() : '-'}
                       </TableCell>
                       <TableCell>
                         <IconButton
@@ -218,7 +231,7 @@ export const Stock: React.FC = () => {
                         </IconButton>
                         <IconButton
                           size="small"
-                          onClick={() => handleDelete(stock.id)}
+                          onClick={() => stock.id && handleDelete(stock.id)}
                           color="error"
                         >
                           <DeleteIcon />
@@ -239,16 +252,22 @@ export const Stock: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <TextField
+            select
             autoFocus
             margin="dense"
-            label="Product ID"
-            type="number"
+            label="Product"
             fullWidth
             variant="outlined"
             value={formData.productId}
             onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
             sx={{ mb: 2 }}
-          />
+          >
+            {products.map((product) => (
+              <MenuItem key={product.id} value={product.id?.toString() ?? ''}>
+                {product.name}
+              </MenuItem>
+            ))}
+          </TextField>
           <TextField
             margin="dense"
             label="Depot ID"
