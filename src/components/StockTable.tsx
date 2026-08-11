@@ -5,7 +5,7 @@ import {
   CardContent,
   Typography,
   Button,
-  IconButton,
+  
   Chip,
   Dialog,
   DialogTitle,
@@ -16,18 +16,18 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  useTheme,
+  
 } from '@mui/material';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
-  Remove as RemoveIcon,
 } from '@mui/icons-material';
-import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
+import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
+import type { GridColDef } from '@mui/x-data-grid';
 import { useMobileView } from '../contexts/MobileViewContext';
-import { useResponsive, getResponsiveDataGridHeight } from '../utils/responsive';
-import { Stock, StockWithDetails, Depot, Product } from '../types';
+import { getResponsiveDataGridHeight, getResponsiveDialogMaxWidth } from '../utils/responsive';
+import type { Stock, StockWithDetails, Depot, Product } from '../types';
 import { apiService } from '../services/api';
 
 interface StockTableProps {
@@ -36,12 +36,9 @@ interface StockTableProps {
 
 export const StockTable: React.FC<StockTableProps> = ({ productId }) => {
   const { isMobile } = useMobileView();
-  const theme = useTheme();
-  const { getResponsiveButtonSize, getResponsiveDialogMaxWidth } = useResponsive();
   
   const [stocks, setStocks] = useState<StockWithDetails[]>([]);
   const [depots, setDepots] = useState<Depot[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [editDialog, setEditDialog] = useState<{ open: boolean; stock?: Stock }>({
     open: false,
@@ -69,7 +66,7 @@ export const StockTable: React.FC<StockTableProps> = ({ productId }) => {
         const stocksWithDetails = stocksResponse.data.map((stock: Stock) => ({
           ...stock,
           product: productsResponse.data?.find((p: Product) => p.id === stock.productId),
-          depot: depotsResponse.data?.find((d: Depot) => d.id === stock.location),
+          depot: depotsResponse.data?.find((d: Depot) => d.id === stock.location || d.id === stock.depotId),
         }));
         setStocks(stocksWithDetails);
       }
@@ -78,9 +75,7 @@ export const StockTable: React.FC<StockTableProps> = ({ productId }) => {
         setDepots(depotsResponse.data);
       }
 
-      if (productsResponse.success && productsResponse.data) {
-        setProducts(productsResponse.data);
-      }
+      // productsResponse kept for lookup in stocks mapping above
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -225,9 +220,9 @@ export const StockTable: React.FC<StockTableProps> = ({ productId }) => {
             rows={stocks}
             columns={columns}
             loading={loading}
-            pageSize={isMobile ? 5 : 10}
-            rowsPerPageOptions={isMobile ? [5, 10] : [10, 25, 50]}
-            disableSelectionOnClick
+            initialState={{ pagination: { paginationModel: { pageSize: isMobile ? 5 : 10, page: 0 } } }}
+            pageSizeOptions={isMobile ? [5, 10] : [10, 25, 50]}
+            disableRowSelectionOnClick
             sx={{
               '& .MuiDataGrid-root': {
                 border: 'none',
@@ -262,15 +257,15 @@ export const StockTable: React.FC<StockTableProps> = ({ productId }) => {
                 fullWidth
                 size={isMobile ? 'medium' : 'small'}
               />
-              <FormControl fullWidth size={isMobile ? 'medium' : 'small'}>
+                <FormControl fullWidth size={isMobile ? 'medium' : 'small'}>
                 <InputLabel>Location</InputLabel>
                 <Select
-                  value={formData.location || ''}
-                  onChange={(e) => setFormData({ ...formData, location: parseInt(e.target.value) || 0 })}
+                  value={formData.location?.toString() || ''}
+                  onChange={(e) => setFormData({ ...formData, location: parseInt(e.target.value as string) || 0 })}
                   label="Location"
                 >
                   {depots.map((depot) => (
-                    <MenuItem key={depot.id} value={depot.id}>
+                    <MenuItem key={depot.id} value={depot.id?.toString()}>
                       {depot.name}
                     </MenuItem>
                   ))}

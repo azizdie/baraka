@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import { useTenant } from '../contexts/TenantContext';
 import { useMobileView } from '../contexts/MobileViewContext';
-import { Tenant } from '../types';
+import type { Tenant } from '../types';
 
 const tenantNames: Record<Tenant, string> = {
   acme_schema: 'Acme Corporation',

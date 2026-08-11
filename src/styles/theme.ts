@@ -1,6 +1,7 @@
-import { createTheme, ThemeOptions } from '@mui/material/styles';
+import { createTheme } from '@mui/material/styles';
+import type { ThemeOptions } from '@mui/material/styles';
 
-const themeOptions: ThemeOptions = {
+const themeOptions = {
   palette: {
     mode: 'light',
     primary: {
@@ -72,7 +73,7 @@ const themeOptions: ThemeOptions = {
       xl: 1536,
     },
   },
-  components: {
+  components: ({
     MuiContainer: {
       styleOverrides: {
         root: {
@@ -110,26 +111,9 @@ const themeOptions: ThemeOptions = {
         },
       },
     },
-    MuiDataGrid: {
-      styleOverrides: {
-        root: {
-          border: '1px solid #e0e0e0',
-          borderRadius: '8px',
-          '& .MuiDataGrid-columnHeaders': {
-            backgroundColor: '#f5f5f5',
-            borderBottom: '2px solid #e0e0e0',
-          },
-          '@media (max-width:600px)': {
-            '& .MuiDataGrid-columnHeaders': {
-              fontSize: '0.8rem',
-            },
-            '& .MuiDataGrid-cell': {
-              fontSize: '0.8rem',
-            },
-          },
-        },
-      },
-    },
+    /* MuiDataGrid overrides are provided by @mui/x-data-grid and may not
+       be present in the Material theme components typings. Cast to `any` below
+       when creating the theme so runtime styles are preserved without type errors. */
     MuiTextField: {
       styleOverrides: {
         root: {
@@ -177,9 +161,9 @@ const themeOptions: ThemeOptions = {
           },
         },
       },
-    },
-  },
-};
+    }
+  } as any),
+} as ThemeOptions;
 
-export const theme = createTheme(themeOptions);
+export const theme = createTheme(themeOptions as ThemeOptions);
 export default theme;

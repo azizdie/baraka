@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosRequestConfig } from 'axios';
-import type { Tenant, Product, ProductApiResponse } from '../types';
+import type { Tenant, Product, ProductApiResponse, Stock as StockType, ApiResponse, Depot, Category } from '../types';
 
 class ApiService {
   private api: AxiosInstance;
@@ -85,12 +85,12 @@ class ApiService {
     console.log('Raw API product:', apiProduct);
     return {
       id: apiProduct.id,
-      name: apiProduct.nom || '',
+      name: (apiProduct.name as any) || (apiProduct as any).nom || '',
       description: apiProduct.description,
       categoryId: apiProduct.category_id,
       reference: apiProduct.reference || '',
-      barcode: apiProduct.codeBarre || '',
-      status: apiProduct.statut,
+      barcode: (apiProduct as any).codeBarre || apiProduct.codeBarre || '',
+      status: apiProduct.statut || (apiProduct as any).status,
     };
   }
 
@@ -127,33 +127,183 @@ class ApiService {
   }
 
   // Stock API methods
-  async getStocks(productId?: number) {
+  async getStocks(productId?: number): Promise<ApiResponse<StockType[]>> {
     const url = productId ? `/Stock?productId=${productId}` : '/Stock';
-    return this.get(url);
+    const response = await this.get<any>(url);
+
+    if (response && response.data) {
+      const stocks = this.transformStocks(response.data);
+      return {
+        success: response.success ?? true,
+        message: response.message ?? 'Success',
+        data: stocks,
+      };
+    }
+
+    if (Array.isArray(response)) {
+      const stocks = this.transformStocks(response);
+      return {
+        success: true,
+        message: 'Success',
+        data: stocks,
+      };
+    }
+
+    return response;
   }
 
-  async getStock(id: number) {
-    return this.get(`/Stock/${id}`);
+  /**
+   * OpenAPI operationId: listStockByProductId
+   * Wrapper that lists stocks, optionally scoped to a product and tenant
+   */
+  async listStockByProductId(productId?: number) {
+    const url = productId ? `/Stock?productId=${productId}` : '/Stock';
+    const response = await this.get<any>(url);
+    if (response && response.data) {
+      const stocks = this.transformStocks(response.data);
+      return { success: response.success ?? true, message: response.message ?? 'Success', data: stocks };
+    }
+    if (Array.isArray(response)) {
+      const stocks = this.transformStocks(response);
+      return { success: true, message: 'Success', data: stocks };
+    }
+    return response;
   }
 
-  async createStock(stockData: any) {
-    return this.post('/Stock', stockData);
+  private transformStock(apiStock: any): StockType {
+    if (!apiStock) return apiStock;
+
+    // helper to extract numeric id from various shapes
+    const extractId = (v: any) => {
+      if (v == null) return undefined;
+      if (typeof v === 'number') return v;
+      if (typeof v === 'string' && v.trim() !== '') {
+        const n = Number(v);
+        return Number.isNaN(n) ? undefined : n;
+      }
+      if (typeof v === 'object') {
+        if ('id' in v && (typeof v.id === 'number' || typeof v.id === 'string')) return extractId(v.id);
+        if ('depotId' in v) return extractId(v.depotId);
+        if ('location' in v) return extractId(v.location);
+      }
+      return undefined;
+    };
+
+    const locationId = extractId(apiStock.location ?? apiStock.depotId ?? apiStock.depot_id ?? apiStock.depot ?? apiStock.location);
+    const depotId = extractId(apiStock.depotId ?? apiStock.depot_id ?? apiStock.location ?? apiStock.depot ?? apiStock.location);
+
+    const transformed: any = {
+      id: apiStock.id ?? apiStock.stockId,
+      productId: apiStock.productId ?? apiStock.product_id,
+      quantity: apiStock.quantity ?? apiStock.qty ?? 0,
+      reservedQuantity: apiStock.reservedQuantity ?? apiStock.reserved_quantity ?? 0,
+      availableQuantity: apiStock.availableQuantity ?? apiStock.available_quantity ?? 0,
+      location: locationId,
+      depotId: depotId,
+      lastUpdated: apiStock.lastUpdated || apiStock.updatedAt || apiStock.updated_at,
+    };
+
+    return transformed as StockType;
   }
 
-  async updateStock(id: number, stockData: any) {
-    return this.put(`/Stock/${id}`, stockData);
+  private transformStocks(apiStocks: any): StockType[] {
+    const stocks = Array.isArray(apiStocks) ? apiStocks : [apiStocks];
+    return stocks.map((s: any) => this.transformStock(s));
   }
 
-  async adjustStock(id: number, adjustData: any) {
-    return this.patch(`/Stock/${id}`, adjustData);
+  async getStock(id: number): Promise<ApiResponse<StockType>> {
+    const response = await this.get<any>(`/Stock/${id}`);
+
+    if (response && response.data) {
+      return {
+        success: response.success ?? true,
+        message: response.message ?? 'Success',
+        data: this.transformStock(response.data),
+      };
+    }
+
+    return response;
   }
 
-  async deleteStock(id: number) {
+  /**
+   * OpenAPI operationId: getStockById
+   */
+  async getStockById(id: number) {
+    return this.getStock(id);
+  }
+
+  async createStock(stockData: any): Promise<ApiResponse<StockType>> {
+    const response = await this.post<any>('/Stock', stockData);
+    if (response && response.data) {
+      return {
+        success: response.success ?? true,
+        message: response.message ?? 'Success',
+        data: this.transformStock(response.data),
+      };
+    }
+    if (response && response.id) {
+      return { success: true, message: 'Success', data: this.transformStock(response) };
+    }
+    return response;
+  }
+
+  /**
+   * OpenAPI operationId: createStock
+   */
+  async createStockOp(stockData: any) {
+    return this.createStock(stockData);
+  }
+
+  async updateStock(id: number, stockData: any): Promise<ApiResponse<StockType>> {
+    const response = await this.put<any>(`/Stock/${id}`, stockData);
+    if (response && response.data) {
+      return {
+        success: response.success ?? true,
+        message: response.message ?? 'Success',
+        data: this.transformStock(response.data),
+      };
+    }
+    return response;
+  }
+
+  /**
+   * OpenAPI operationId: updateStockById
+   */
+  async updateStockById(id: number, stockData: any) {
+    return this.updateStock(id, stockData);
+  }
+
+  async adjustStock(id: number, adjustData: any): Promise<ApiResponse<StockType>> {
+    const response = await this.patch<any>(`/Stock/${id}`, adjustData);
+    if (response && response.data) {
+      return {
+        success: response.success ?? true,
+        message: response.message ?? 'Success',
+        data: this.transformStock(response.data),
+      };
+    }
+    return response;
+  }
+
+  /**
+   * OpenAPI operationId: adjustStockById
+   */
+  async adjustStockById(id: number, adjustData: any) {
+    return this.adjustStock(id, adjustData);
+  }
+  async deleteStock(id: number): Promise<ApiResponse<null>> {
     return this.delete(`/Stock/${id}`);
   }
 
+  /**
+   * OpenAPI operationId: deleteStockById
+   */
+  async deleteStockById(id: number) {
+    return this.deleteStock(id);
+  }
+
   // Product API methods
-  async getProducts(categoryId?: number) {
+  async getProducts(categoryId?: number): Promise<ApiResponse<Product[]>> {
     try {
       const url = categoryId ? `/Product?categoryId=${categoryId}` : '/Product';
       const response = await this.get<any>(url);
@@ -185,7 +335,7 @@ class ApiService {
     }
   }
 
-  async getProduct(id: number) {
+  async getProduct(id: number): Promise<ApiResponse<Product>> {
     const response = await this.get<any>(`/Product/${id}`);
     
     // Handle the ProductResponse format from backend
@@ -201,7 +351,7 @@ class ApiService {
     return response;
   }
 
-  async createProduct(productData: any) {
+  async createProduct(productData: any): Promise<ApiResponse<Product>> {
     try {
       const payload = {
         nom: productData.name || productData.nom,
@@ -246,7 +396,7 @@ class ApiService {
     }
   }
 
-  async updateProduct(id: number, productData: any) {
+  async updateProduct(id: number, productData: any): Promise<ApiResponse<Product>> {
     const payload = {
       nom: productData.name || productData.nom,
       description: productData.description,
@@ -269,12 +419,12 @@ class ApiService {
     return response;
   }
 
-  async deleteProduct(id: number) {
+  async deleteProduct(id: number): Promise<ApiResponse<null>> {
     return this.delete(`/Product/${id}`);
   }
 
   // Depot API methods
-  async getDepots() {
+  async getDepots(): Promise<ApiResponse<Depot[]>> {
     const response = await this.get<any>('/Depot');
 
     if (response && response.data) {
@@ -296,7 +446,7 @@ class ApiService {
     return response;
   }
 
-  async getDepot(id: number) {
+  async getDepot(id: number): Promise<ApiResponse<Depot>> {
     const response = await this.get<any>(`/Depot/${id}`);
 
     if (response && response.data) {
@@ -310,7 +460,7 @@ class ApiService {
     return response;
   }
 
-  async createDepot(depotData: any) {
+  async createDepot(depotData: any): Promise<ApiResponse<Depot>> {
     const payload = {
       name: depotData.name,
       address: depotData.address,
@@ -343,7 +493,7 @@ class ApiService {
     return response;
   }
 
-  async updateDepot(id: number, depotData: any) {
+  async updateDepot(id: number, depotData: any): Promise<ApiResponse<Depot>> {
     const payload = {
       name: depotData.name,
       address: depotData.address,
@@ -368,13 +518,18 @@ class ApiService {
     return response;
   }
 
-  async deleteDepot(id: number) {
+  async deleteDepot(id: number): Promise<ApiResponse<null>> {
     return this.delete(`/Depot/${id}`);
   }
 
   // Category API methods
-  async getCategories() {
-    return this.get('/Category');
+  async getCategories(): Promise<ApiResponse<Category[]>> {
+    const response = await this.get<any>('/Category');
+    if (response && response.data) {
+      return { success: response.success ?? true, message: response.message ?? 'Success', data: response.data };
+    }
+    if (Array.isArray(response)) return { success: true, message: 'Success', data: response };
+    return response;
   }
 
   async getCategory(id: number) {
