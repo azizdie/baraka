@@ -80,14 +80,40 @@ class ApiService {
     return response.data;
   }
 
+  private parseNumericId(...values: any[]): number | undefined {
+    for (const value of values) {
+      if (value == null) continue;
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value === 'string' && value.trim() !== '') {
+        const parsed = Number(value);
+        if (!Number.isNaN(parsed)) return parsed;
+      }
+      if (typeof value === 'object') {
+        const nestedId = this.parseNumericId(value.id, value.categoryId, value.category_id, value.category?.id);
+        if (nestedId !== undefined) return nestedId;
+      }
+    }
+    return undefined;
+  }
+
   // Helper function to transform API product to frontend format
-  private transformProduct(apiProduct: ProductApiResponse): Product {
-    console.log('Raw API product:', apiProduct);
+  private transformProduct(apiProduct: ProductApiResponse | any): Product {
+    const categoryId = this.parseNumericId(
+      apiProduct?.category_id,
+      apiProduct?.categoryId,
+      apiProduct?.category?.id,
+      apiProduct?.category_id,
+      apiProduct?.category?.categoryId,
+      apiProduct?.category,
+      apiProduct?.categoryObj,
+      apiProduct?.category?.value
+    );
+
     return {
       id: apiProduct.id,
       name: (apiProduct.name as any) || (apiProduct as any).nom || '',
       description: apiProduct.description,
-      categoryId: apiProduct.category_id,
+      categoryId,
       reference: apiProduct.reference || '',
       barcode: (apiProduct as any).codeBarre || apiProduct.codeBarre || '',
       status: apiProduct.statut || (apiProduct as any).status,
@@ -95,9 +121,30 @@ class ApiService {
   }
 
   // Helper function to transform products array
-  private transformProducts(apiProducts: ProductApiResponse[] | ProductApiResponse): Product[] {
+  private transformProducts(apiProducts: ProductApiResponse[] | ProductApiResponse | any): Product[] {
     const products = Array.isArray(apiProducts) ? apiProducts : [apiProducts];
     return products.map(p => this.transformProduct(p));
+  }
+
+  // Helper function to transform API category to frontend format
+  private transformCategory(apiCategory: any) {
+    if (!apiCategory) {
+      return apiCategory;
+    }
+
+    return {
+      id: apiCategory.id ?? apiCategory.categoryId ?? apiCategory.category_id,
+      name: apiCategory.name || apiCategory.nom || '',
+      description: apiCategory.description,
+      isActive: apiCategory.isActive ?? apiCategory.actif ?? true,
+      createdAt: apiCategory.createdAt || apiCategory.created_at,
+      updatedAt: apiCategory.updatedAt || apiCategory.updated_at,
+    };
+  }
+
+  private transformCategories(apiCategories: any) {
+    const categories = Array.isArray(apiCategories) ? apiCategories : [apiCategories];
+    return categories.map((category) => this.transformCategory(category));
   }
 
   // Helper function to transform API depot to frontend format
@@ -351,16 +398,34 @@ class ApiService {
     return response;
   }
 
+  private normalizeProductPayload(productData: any, fallbackName?: string) {
+    const categoryId =
+      productData.categoryId ??
+      productData.category_id ??
+      productData.category?.id ??
+      productData.categoryIdValue ??
+      productData.category_id_value;
+
+    const safeName = productData.name ?? fallbackName ?? '';
+    const safeDescription = productData.description ?? '';
+    const safeReference = productData.reference ?? '';
+    const safeBarcode = productData.barcode ?? productData.codeBarre ?? '';
+    const safeStatus = productData.status ?? productData.statut ?? '';
+
+    return {
+      name: safeName,
+      description: safeDescription,
+      category_id: categoryId,
+      categoryId,
+      reference: safeReference,
+      codeBarre: safeBarcode,
+      statut: safeStatus,
+    };
+  }
+
   async createProduct(productData: any): Promise<ApiResponse<Product>> {
     try {
-      const payload = {
-        nom: productData.name || productData.nom,
-        description: productData.description,
-        category_id: productData.categoryId || productData.category_id,
-        reference: productData.reference,
-        codeBarre: productData.barcode || productData.codeBarre,
-        statut: productData.status || productData.statut,
-      };
+      const payload = this.normalizeProductPayload(productData);
       
       console.log('Creating product with payload:', payload);
       const response = await this.post<any>('/Product', payload);
@@ -397,16 +462,11 @@ class ApiService {
   }
 
   async updateProduct(id: number, productData: any): Promise<ApiResponse<Product>> {
-    const payload = {
-      nom: productData.name || productData.nom,
-      description: productData.description,
-      category_id: productData.categoryId || productData.category_id,
-      reference: productData.reference,
-      codeBarre: productData.barcode || productData.codeBarre,
-      statut: productData.status || productData.statut,
-    };
+    const currentProduct = await this.getProduct(id).catch(() => null) as { data?: Product } | null;
+    const fallbackName = currentProduct?.data?.name || '';
+    const payload = this.normalizeProductPayload(productData, fallbackName);
     const response = await this.put<any>(`/Product/${id}`, payload);
-    
+
     if (response && response.data) {
       const product = this.transformProduct(response.data);
       return {
@@ -526,9 +586,19 @@ class ApiService {
   async getCategories(): Promise<ApiResponse<Category[]>> {
     const response = await this.get<any>('/Category');
     if (response && response.data) {
-      return { success: response.success ?? true, message: response.message ?? 'Success', data: response.data };
+      return {
+        success: response.success ?? true,
+        message: response.message ?? 'Success',
+        data: this.transformCategories(response.data),
+      };
     }
-    if (Array.isArray(response)) return { success: true, message: 'Success', data: response };
+    if (Array.isArray(response)) {
+      return {
+        success: true,
+        message: 'Success',
+        data: this.transformCategories(response),
+      };
+    }
     return response;
   }
 

@@ -34,7 +34,6 @@ export const Categories: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    parentId: '',
     isActive: true,
   });
 
@@ -62,7 +61,6 @@ export const Categories: React.FC = () => {
     setFormData({
       name: '',
       description: '',
-      parentId: '',
       isActive: true,
     });
     setDialogOpen(true);
@@ -73,7 +71,6 @@ export const Categories: React.FC = () => {
     setFormData({
       name: category.name || '',
       description: category.description || '',
-      parentId: category.parentId?.toString() || '',
       isActive: category.isActive ?? true,
     });
     setDialogOpen(true);
@@ -94,7 +91,6 @@ export const Categories: React.FC = () => {
     try {
       const categoryData = {
         ...formData,
-        parentId: formData.parentId ? parseInt(formData.parentId) : undefined,
       };
 
       if (editingCategory && editingCategory.id) {
@@ -149,8 +145,8 @@ export const Categories: React.FC = () => {
       </Box>
 
       <Grid container spacing={3}>
-        {categories.map((category) => (
-          <Grid item xs={12} sm={6} md={4} key={category.id}>
+        {categories.map((category, index) => (
+          <Grid item xs={12} sm={6} md={4} key={category.id ?? `${category.name}-${index}`}>
             <Card
               sx={{
                 height: '100%',
@@ -199,11 +195,6 @@ export const Categories: React.FC = () => {
                   </Typography>
                 )}
 
-                {category.parentId && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Parent Category ID: {category.parentId}
-                  </Typography>
-                )}
 
                 <Box sx={{ mt: 2 }}>
                   <Typography
@@ -247,15 +238,6 @@ export const Categories: React.FC = () => {
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            label="Parent Category ID"
-            type="number"
-            fullWidth
-            variant="outlined"
-            value={formData.parentId}
-            onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
           />
         </DialogContent>
         <DialogActions>
